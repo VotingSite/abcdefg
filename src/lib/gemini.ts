@@ -68,19 +68,26 @@ Generate exactly ${request.count} questions following this format.`;
 };
 
 export async function generateQuestionsWithAI(request: AIQuestionRequest): Promise<AIGeneratedQuestion[]> {
-  if (!genAI) {
-    throw new Error('Gemini API is not configured. Please check your API key.');
-  }
-
+  // Use server-side proxy to avoid exposing API keys in the browser.
+  // The proxy will forward the prompt to Google and return the raw response text.
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const prompt = createPrompt(request);
-    
-    console.log('Generating questions with prompt:', prompt);
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    console.log('Requesting server to generate questions with prompt:', prompt);
+
+    const resp = await fetch((import.meta.env.VITE_GEN_PROXY_URL || '') + '/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`Proxy generation failed: ${resp.status} ${body}`);
+    }
+
+    const data = await resp.json();
+    const text = data?.text || '';
+    console.log('AI Response (via proxy):', text);
     
     console.log('AI Response:', text);
     
@@ -144,7 +151,7 @@ export async function generateQuestionsWithAI(request: AIQuestionRequest): Promi
       };
     });
     
-    console.log('Successfully generated', processedQuestions.length, 'questions');
+  console.log('Successfully generated', processedQuestions.length, 'questions');
     return processedQuestions;
     
   } catch (error) {
@@ -154,5 +161,9 @@ export async function generateQuestionsWithAI(request: AIQuestionRequest): Promi
 }
 
 export function isGeminiConfigured(): boolean {
-  return !!apiKey;
+  // Consider Gemini configured if either a local API key is present (not recommended for prod)
+  // or if a server proxy URL is set (preferred). This prevents the UI from showing
+  // a missing-key warning when using the server-side proxy.
+  const proxyUrl = (import.meta.env as any).VITE_GEN_PROXY_URL || (import.meta.env as any).VITE_GEN_PROXY;
+  return !!apiKey || !!proxyUrl;
 }

@@ -298,7 +298,7 @@ export function AppSidebar({ userType }: AppSidebarProps) {
                 className="text-center"
               >
                 <p className="text-xs text-muted-foreground">
-                  Powered by <span className="gradient-text font-semibold">Aptitude Test X</span>
+                  Powered by <span className="gradient-text font-semibold">Aptitude Test X(saad parkar </span>
                 </p>
               </motion.div>
             )}
